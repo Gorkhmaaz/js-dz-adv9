@@ -1,102 +1,140 @@
-const omdbApiKey = '7b5f120b';
-let currentPage = 1;
-let currentQuery = '';
-let currentType = '';
+class MovieService {
+    constructor(apiKey) {
+        this.apiKey = apiKey;
+        this.baseUrl = 'https://www.omdbapi.com/';
+    }
 
-document.getElementById('searchForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    currentQuery = document.getElementById('searchInput').value;
-    currentType = document.getElementById('type').value;
-    currentPage = 1;
-    await searchMovies();
-});
-
-async function searchMovies() {
-    const url = `https://www.omdbapi.com/?apikey=${omdbApiKey}&s=${currentQuery}&type=${currentType}&page=${currentPage}`;
-
-    try {
-        const response = await axios.get(url);
-        if (response.data.Response === 'False') {
-            displayError('Movie not found!');
-        } else {
-            displayMovies(response.data);
+    async search(title, type, page) {
+        const url = `${this.baseUrl}?apikey=${this.apiKey}&s=${title}&type=${type}&page=${page}`;
+        try {
+            const response = await axios.get(url);
+            if (response.data.Response === 'False') {
+                throw new Error('Movie not found!');
+            }
+            return response.data;
+        } catch (error) {
+            throw new Error('Error fetching data!');
         }
-    } catch (error) {
-        displayError('Error fetching data!');
+    }
+
+    async getMovie(movieId) {
+        const url = `${this.baseUrl}?apikey=${this.apiKey}&i=${movieId}`;
+        try {
+            const response = await axios.get(url);
+            if (response.data.Response === 'False') {
+                throw new Error('Movie details not found!');
+            }
+            return response.data;
+        } catch (error) {
+            throw new Error('Error fetching movie details!');
+        }
     }
 }
+class UIHandler {
+    constructor() {
+        this.currentPage = 1;
+        this.currentQuery = '';
+        this.currentType = '';
+        this.movieService = new MovieService('7b5f120b');
+        this.initEventListeners();
+    }
 
-function displayMovies(data) {
-    const moviesDiv = document.getElementById('movies');
-    const paginationDiv = document.getElementById('pagination');
-    moviesDiv.innerHTML = '';
-    paginationDiv.innerHTML = '';
+    initEventListeners() {
+        document.getElementById('searchForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            this.currentQuery = document.getElementById('searchInput').value;
+            this.currentType = document.getElementById('type').value;
+            this.currentPage = 1;
+            await this.searchMovies();
+        });
 
-    if (data.Search) {
+        document.getElementById('moreButton').addEventListener('click', async () => {
+            this.currentPage++;
+            await this.searchMovies();
+        });
+    }
+
+    async searchMovies() {
+        this.toggleLoading(true);
+        try {
+            const data = await this.movieService.search(this.currentQuery, this.currentType, this.currentPage);
+            this.displayMovies(data);
+        } catch (error) {
+            this.displayError(error.message);
+        } finally {
+            this.toggleLoading(false);
+        }
+    }
+
+    async showDetails(movieId) {
+        this.toggleLoading(true, 'details');
+        try {
+            const data = await this.movieService.getMovie(movieId);
+            this.displayDetails(data);
+        } catch (error) {
+            alert(error.message);
+        } finally {
+            this.toggleLoading(false, 'details');
+        }
+    }
+
+    displayMovies(data) {
+        const moviesDiv = document.getElementById('movies');
+        const moreButton = document.getElementById('moreButton');
+        if (this.currentPage === 1) moviesDiv.innerHTML = '';
+
         data.Search.forEach(movie => {
             const movieDiv = document.createElement('div');
             movieDiv.classList.add('movie');
             movieDiv.innerHTML = `
-            <p><strong>Title:</strong> ${movie.Title}</p>
-            <p><strong>Type:</strong> ${movie.Type}</p>
-            <p><strong>Year:</strong> ${movie.Year}</p>
-            <button onclick="showDetails('${movie.imdbID}')">Details</button>
-          `;
+                <p><strong>Title:</strong> ${movie.Title}</p>
+                <p><strong>Type:</strong> ${movie.Type}</p>
+                <p><strong>Year:</strong> ${movie.Year}</p>
+                <button onclick="uiHandler.showDetails('${movie.imdbID}')">Details</button>
+            `;
             moviesDiv.appendChild(movieDiv);
         });
 
-        const totalResults = parseInt(data.totalResults);
-        const totalPages = Math.ceil(totalResults / 10);
-        for (let i = 1; i <= totalPages; i++) {
-            const button = document.createElement('button');
-            button.innerText = i;
-            button.addEventListener('click', () => {
-                currentPage = i;
-                searchMovies();
-            });
-            paginationDiv.appendChild(button);
+        if (data.totalResults > this.currentPage * 10) {
+            moreButton.style.display = 'block';
+        } else {
+            moreButton.style.display = 'none';
         }
-    } else {
-        displayError('Movie not found!');
+    }
+
+    displayDetails(data) {
+        const detailsDiv = document.getElementById('details');
+        detailsDiv.innerHTML = `
+            <h2>${data.Title}</h2>
+            <p><strong>Year:</strong> ${data.Year}</p>
+            <p><strong>Rated:</strong> ${data.Rated}</p>
+            <p><strong>Released:</strong> ${data.Released}</p>
+            <p><strong>Runtime:</strong> ${data.Runtime}</p>
+            <p><strong>Genre:</strong> ${data.Genre}</p>
+            <p><strong>Director:</strong> ${data.Director}</p>
+            <p><strong>Writer:</strong> ${data.Writer}</p>
+            <p><strong>Actors:</strong> ${data.Actors}</p>
+            <p><strong>Plot:</strong> ${data.Plot}</p>
+            <p><strong>Language:</strong> ${data.Language}</p>
+            <p><strong>Country:</strong> ${data.Country}</p>
+            <p><strong>Awards:</strong> ${data.Awards}</p>
+            <p><strong>IMDb Rating:</strong> ${data.imdbRating}</p>
+        `;
+    }
+
+    displayError(message) {
+        const moviesDiv = document.getElementById('movies');
+        moviesDiv.innerHTML = `<p>${message}</p>`;
+    }
+
+    toggleLoading(isLoading, section = 'movies') {
+        const loadingIcon = document.getElementById(`${section}Loading`);
+        loadingIcon.style.display = isLoading ? 'block' : 'none';
     }
 }
 
-async function showDetails(id) {
-    const url = `https://www.omdbapi.com/?apikey=${omdbApiKey}&i=${id}`;
+const uiHandler = new UIHandler();
 
-    try {
-        const response = await axios.get(url);
-        const data = response.data;
-        displayDetails(data);
-    } catch (error) {
-        alert('Error fetching movie details!');
-    }
-}
-
-function displayDetails(data) {
-    const detailsDiv = document.getElementById('details');
-    detailsDiv.innerHTML = `
-        <h2>${data.Title}</h2>
-        <p><strong>Year:</strong> ${data.Year}</p>
-        <p><strong>Rated:</strong> ${data.Rated}</p>
-        <p><strong>Released:</strong> ${data.Released}</p>
-        <p><strong>Runtime:</strong> ${data.Runtime}</p>
-        <p><strong>Genre:</strong> ${data.Genre}</p>
-        <p><strong>Director:</strong> ${data.Director}</p>
-        <p><strong>Writer:</strong> ${data.Writer}</p>
-        <p><strong>Actors:</strong> ${data.Actors}</p>
-        <p><strong>Plot:</strong> ${data.Plot}</p>
-        <p><strong>Language:</strong> ${data.Language}</p>
-        <p><strong>Country:</strong> ${data.Country}</p>
-        <p><strong>Awards:</strong> ${data.Awards}</p>
-        <p><strong>IMDb Rating:</strong> ${data.imdbRating}</p>
-      `;
-}
-
-function displayError(message) {
-    const moviesDiv = document.getElementById('movies');
-    moviesDiv.innerHTML = `<p>${message}</p>`;
-}
 
 
 

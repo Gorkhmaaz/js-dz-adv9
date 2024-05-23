@@ -11,7 +11,7 @@
 <body>
     <h1>Movie Search</h1>
     <form id="searchForm">
-        <input type="text" id="searchInput" placeholder="Enter movie title" required>
+        <input type="text" id="searchInput" placeholder="Search for movies...">
         <select id="type">
             <option value="movie">Movie</option>
             <option value="series">Series</option>
@@ -19,8 +19,10 @@
         </select>
         <button type="submit">Search</button>
     </form>
+    <div id="moviesLoading" style="display: none;">Loading...</div>
     <div id="movies"></div>
-    <div id="pagination" class="pagination"></div>
+    <button id="moreButton" style="display: none;">More</button>
+    <div id="detailsLoading" style="display: none;">Loading...</div>
     <div id="details"></div>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script src="./js/index.js"></script>

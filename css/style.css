@@ -73,3 +73,8 @@ body {
   #details h2 {
     margin-top: 0;
   }
+  #moviesLoading, #detailsLoading {
+    font-size: 20px;
+    text-align: center;
+    margin-top: 20px;
+}
